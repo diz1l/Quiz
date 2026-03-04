@@ -50,10 +50,32 @@
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
     .progress-label {
       font-size: 13px;
       color: var(--muted);
-      margin-bottom: 8px;
+    }
+
+    .stop-btn {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      line-height: 1;
+      font-size: 16px;
+      display: grid;
+      place-items: center;
+      padding: 0;
     }
 
     .progress-track {
@@ -102,6 +124,61 @@
       font-size: 20px;
       line-height: 1.35;
       font-weight: 600;
+    }
+
+    .setup {
+      background: rgba(24, 30, 43, 0.95);
+      border-radius: 18px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: none;
+      gap: 12px;
+    }
+
+    .setup.visible {
+      display: grid;
+    }
+
+    .setup-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .count-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .count-btn {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .count-btn.active {
+      border-color: rgba(95, 139, 255, 0.9);
+      background: rgba(95, 139, 255, 0.24);
+    }
+
+    .count-btn:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .start-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      background: #405bff;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
     }
 
     .options {
@@ -214,13 +291,20 @@
       .question {
         font-size: 18px;
       }
+
+      .count-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
   </style>
 </head>
 <body>
   <div class="app">
     <div class="top" id="topBox">
-      <div class="progress-label" id="progressLabel">Загрузка...</div>
+      <div class="top-row">
+        <div class="progress-label" id="progressLabel">Загрузка...</div>
+        <button class="stop-btn" id="stopBtn" type="button" aria-label="Закрыть">✕</button>
+      </div>
       <div class="progress-track">
         <div class="progress-bar" id="progressBar"></div>
       </div>
@@ -229,6 +313,12 @@
     <div class="card" id="cardBox">
       <div class="title" id="quizTitle"></div>
       <div class="question" id="questionText"></div>
+    </div>
+
+    <div class="setup" id="setupBox">
+      <div class="setup-title">Сколько карточек показать?</div>
+      <div class="count-grid" id="countGrid"></div>
+      <button class="start-btn" id="startQuizBtn" type="button">Начать квиз</button>
     </div>
 
     <div class="options" id="options"></div>
@@ -266,11 +356,16 @@
     const mistakesNode = document.getElementById('mistakes');
     const retryBtn = document.getElementById('retryBtn');
     const newQuizBtn = document.getElementById('newQuizBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const setupBox = document.getElementById('setupBox');
+    const countGrid = document.getElementById('countGrid');
+    const startQuizBtn = document.getElementById('startQuizBtn');
 
     let quiz = null;
     let currentCards = [];
     let currentIndex = 0;
     let answers = [];
+    let selectedCardCount = 20;
 
     function setStatus(text) {
       statusNode.textContent = text || '';
@@ -400,6 +495,58 @@
       });
     }
 
+    function setSelectedCardCount(value) {
+      selectedCardCount = value;
+      for (const btn of countGrid.querySelectorAll('button')) {
+        btn.classList.toggle('active', Number(btn.dataset.count) === selectedCardCount);
+      }
+    }
+
+    function renderCountChoices() {
+      const allCards = Array.isArray(quiz && quiz.cards) ? quiz.cards : [];
+      const limits = [5, 10, 15, 20];
+      countGrid.innerHTML = '';
+
+      for (const limit of limits) {
+        const btn = document.createElement('button');
+        btn.className = 'count-btn';
+        btn.type = 'button';
+        btn.dataset.count = String(limit);
+        btn.textContent = String(limit);
+        if (limit > allCards.length) {
+          btn.disabled = true;
+        }
+        btn.addEventListener('click', () => setSelectedCardCount(limit));
+        countGrid.appendChild(btn);
+      }
+
+      const fallback = limits.find((limit) => limit <= allCards.length) || allCards.length;
+      setSelectedCardCount(Math.min(selectedCardCount, fallback));
+    }
+
+    function showSetup() {
+      topBox.style.display = '';
+      cardBox.style.display = 'none';
+      optionsBox.style.display = 'none';
+      resultsBox.classList.remove('visible');
+      setupBox.classList.add('visible');
+      progressLabel.textContent = 'Выбор квиза';
+      progressBar.style.width = '0%';
+      renderCountChoices();
+    }
+
+    function startQuiz() {
+      const allCards = Array.isArray(quiz && quiz.cards) ? quiz.cards : [];
+      currentCards = allCards.slice(0, selectedCardCount);
+      currentIndex = 0;
+      answers = [];
+
+      setupBox.classList.remove('visible');
+      cardBox.style.display = '';
+      optionsBox.style.display = '';
+      renderCard();
+    }
+
     function sendToBot(payload) {
       if (!tg) return;
       tg.sendData(JSON.stringify(payload));
@@ -409,6 +556,7 @@
       topBox.style.display = 'none';
       cardBox.style.display = 'none';
       optionsBox.style.display = 'none';
+      setupBox.classList.remove('visible');
 
       const wrong = answers.filter((item) => item && !item.isCorrect);
       const rightCount = answers.length - wrong.length;
@@ -450,6 +598,14 @@
       resultsBox.classList.add('visible');
     }
 
+    stopBtn.addEventListener('click', () => {
+      if (tg) {
+        tg.close();
+      }
+    });
+
+    startQuizBtn.addEventListener('click', startQuiz);
+
     newQuizBtn.addEventListener('click', () => {
       sendToBot({ type: 'new_quiz' });
       if (tg) tg.close();
@@ -465,13 +621,13 @@
       try {
         setStatus('Загружаем квиз...');
         quiz = await loadQuiz();
-        currentCards = Array.isArray(quiz.cards) ? quiz.cards : [];
-        if (!currentCards.length) {
+        const loadedCards = Array.isArray(quiz.cards) ? quiz.cards : [];
+        if (!loadedCards.length) {
           throw new Error('В квизе нет карточек.');
         }
 
         setStatus('');
-        renderCard();
+        showSetup();
       } catch (error) {
         setStatus(error.message || 'Не удалось загрузить квиз.');
       }
