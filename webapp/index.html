@@ -349,18 +349,25 @@
       }, 200);
     }
 
+    function resolveCorrectIndex(card) {
+      const options = Array.isArray(card && card.options) ? card.options : [];
+      const index = Number(card && card.correct);
+      return Number.isInteger(index) && index >= 0 && index < options.length ? index : -1;
+    }
+
     function chooseOption(selectedIndex) {
       const card = currentCards[currentIndex];
       if (!card) return;
 
+      const correctIndex = resolveCorrectIndex(card);
       lockOptions();
 
       const buttons = optionsBox.querySelectorAll('button');
       buttons.forEach((button, idx) => {
-        if (idx === card.correct) {
+        if (idx === correctIndex) {
           button.classList.add('correct');
         }
-        if (idx === selectedIndex && idx !== card.correct) {
+        if (idx === selectedIndex && idx !== correctIndex) {
           button.classList.add('wrong');
         }
       });
@@ -368,8 +375,8 @@
       answers[currentIndex] = {
         cardId: card.id,
         selected: selectedIndex,
-        correct: card.correct,
-        isCorrect: selectedIndex === card.correct,
+        correct: correctIndex,
+        isCorrect: selectedIndex === correctIndex,
         card
       };
 
@@ -418,7 +425,8 @@
           const node = document.createElement('div');
           node.className = 'mistake';
           const userAnswer = item.card.options[item.selected] || 'Нет ответа';
-          const correctAnswer = item.card.options[item.card.correct];
+          const resolvedCorrectIndex = resolveCorrectIndex(item.card);
+          const correctAnswer = resolvedCorrectIndex >= 0 ? item.card.options[resolvedCorrectIndex] : 'Не указан';
           const query = item.card.searchQuery || item.card.question;
 
           node.innerHTML = `
