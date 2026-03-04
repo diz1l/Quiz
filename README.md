@@ -46,3 +46,5 @@ npm run dev
 - Состояние пользователей хранится в памяти (`Map`) и очищается при рестарте процесса.
 - Квизы для WebApp выдаются через токен (`/api/quiz/:token`) с ограниченным временем жизни.
 
+https://console.groq.com/keys
+https://dashboard.render.com/web
