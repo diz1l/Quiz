@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TG Quiz</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10131c;
+      --card: #181e2b;
+      --muted: #8f9bb3;
+      --text: #eef3ff;
+      --green: #2fbf71;
+      --red: #f05d5e;
+      --accent: #5f8bff;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: radial-gradient(120% 120% at 50% 0%, #1a2338, var(--bg));
+      color: var(--text);
+    }
+
+    body {
+      padding: 12px;
+    }
+
+    .app {
+      max-width: 720px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: calc(100vh - 24px);
+    }
+
+    .top {
+      background: rgba(24, 30, 43, 0.9);
+      border-radius: 14px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .progress-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #4f7cff, #8b5dff);
+      transition: width 220ms ease;
+    }
+
+    .card {
+      background: rgba(24, 30, 43, 0.92);
+      border-radius: 18px;
+      padding: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.25);
+      transform: translateY(0);
+      opacity: 1;
+      transition: transform 220ms ease, opacity 220ms ease;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 220px;
+    }
+
+    .card.animating {
+      transform: translateY(8px);
+      opacity: 0;
+    }
+
+    .title {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .question {
+      font-size: 20px;
+      line-height: 1.35;
+      font-weight: 600;
+    }
+
+    .options {
+      display: grid;
+      gap: 10px;
+    }
+
+    .option {
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: left;
+      font-size: 15px;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+      cursor: pointer;
+    }
+
+    .option:disabled {
+      cursor: default;
+      opacity: 0.95;
+    }
+
+    .option:not(:disabled):active {
+      transform: scale(0.985);
+    }
+
+    .option.correct {
+      border-color: rgba(47, 191, 113, 0.9);
+      background: rgba(47, 191, 113, 0.2);
+    }
+
+    .option.wrong {
+      border-color: rgba(240, 93, 94, 0.9);
+      background: rgba(240, 93, 94, 0.2);
+    }
+
+    .results {
+      background: rgba(24, 30, 43, 0.95);
+      border-radius: 18px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: none;
+      gap: 12px;
+      flex-direction: column;
+    }
+
+    .results.visible {
+      display: flex;
+    }
+
+    .score {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .mistake {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .mistake b {
+      color: #c9d8ff;
+    }
+
+    .mistake a {
+      color: #8eb0ff;
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: auto;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn.new {
+      background: #405bff;
+    }
+
+    .btn.retry {
+      background: #2f9f67;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 430px) {
+      .question {
+        font-size: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top" id="topBox">
+      <div class="progress-label" id="progressLabel">Загрузка...</div>
+      <div class="progress-track">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </div>
+
+    <div class="card" id="cardBox">
+      <div class="title" id="quizTitle"></div>
+      <div class="question" id="questionText"></div>
+    </div>
+
+    <div class="options" id="options"></div>
+
+    <div class="results" id="results">
+      <div class="score" id="score"></div>
+      <div id="mistakes"></div>
+      <div class="actions">
+        <button class="btn new" id="newQuizBtn">🆕 Новый квиз</button>
+        <button class="btn retry" id="retryBtn">🔁 Повторить ошибки</button>
+      </div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    const topBox = document.getElementById('topBox');
+    const cardBox = document.getElementById('cardBox');
+    const questionText = document.getElementById('questionText');
+    const quizTitle = document.getElementById('quizTitle');
+    const optionsBox = document.getElementById('options');
+    const progressLabel = document.getElementById('progressLabel');
+    const progressBar = document.getElementById('progressBar');
+    const statusNode = document.getElementById('status');
+    const resultsBox = document.getElementById('results');
+    const scoreNode = document.getElementById('score');
+    const mistakesNode = document.getElementById('mistakes');
+    const retryBtn = document.getElementById('retryBtn');
+    const newQuizBtn = document.getElementById('newQuizBtn');
+
+    let quiz = null;
+    let currentCards = [];
+    let currentIndex = 0;
+    let answers = [];
+
+    function setStatus(text) {
+      statusNode.textContent = text || '';
+    }
+
+    function getParams() {
+      const url = new URL(window.location.href);
+      const queryToken = url.searchParams.get('token');
+      const queryBase64 = url.searchParams.get('q');
+      const startParam = tg && tg.initDataUnsafe ? tg.initDataUnsafe.start_param : '';
+      return {
+        token: startParam || queryToken,
+        base64Quiz: queryBase64
+      };
+    }
+
+    function decodeBase64Quiz(base64Value) {
+      try {
+        const decoded = atob(base64Value);
+        return JSON.parse(decoded);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function loadQuiz() {
+      const params = getParams();
+
+      if (params.base64Quiz) {
+        const byUrl = decodeBase64Quiz(params.base64Quiz);
+        if (byUrl && Array.isArray(byUrl.cards)) {
+          return byUrl;
+        }
+      }
+
+      if (!params.token) {
+        throw new Error('Не найден token/start_param для загрузки квиза.');
+      }
+
+      const response = await fetch(`/api/quiz/${encodeURIComponent(params.token)}`);
+      if (!response.ok) {
+        throw new Error('Квиз недоступен или устарел.');
+      }
+
+      return response.json();
+    }
+
+    function updateProgress() {
+      const total = currentCards.length || 1;
+      const cardNumber = Math.min(currentIndex + 1, total);
+      progressLabel.textContent = `Карточка ${cardNumber} / ${total}`;
+      progressBar.style.width = `${(Math.min(currentIndex, total) / total) * 100}%`;
+    }
+
+    function googleLink(query) {
+      return `https://google.com/search?q=${encodeURIComponent(query || '')}`;
+    }
+
+    function lockOptions() {
+      for (const btn of optionsBox.querySelectorAll('button')) {
+        btn.disabled = true;
+      }
+    }
+
+    function nextCard() {
+      currentIndex += 1;
+      if (currentIndex >= currentCards.length) {
+        showResults();
+        return;
+      }
+
+      cardBox.classList.add('animating');
+      setTimeout(() => {
+        cardBox.classList.remove('animating');
+        renderCard();
+      }, 200);
+    }
+
+    function chooseOption(selectedIndex) {
+      const card = currentCards[currentIndex];
+      if (!card) return;
+
+      lockOptions();
+
+      const buttons = optionsBox.querySelectorAll('button');
+      buttons.forEach((button, idx) => {
+        if (idx === card.correct) {
+          button.classList.add('correct');
+        }
+        if (idx === selectedIndex && idx !== card.correct) {
+          button.classList.add('wrong');
+        }
+      });
+
+      answers[currentIndex] = {
+        cardId: card.id,
+        selected: selectedIndex,
+        correct: card.correct,
+        isCorrect: selectedIndex === card.correct,
+        card
+      };
+
+      setTimeout(nextCard, 1500);
+    }
+
+    function renderCard() {
+      const card = currentCards[currentIndex];
+      updateProgress();
+
+      quizTitle.textContent = quiz.title || 'Квиз';
+      questionText.textContent = card.question;
+      optionsBox.innerHTML = '';
+
+      card.options.forEach((option, idx) => {
+        const button = document.createElement('button');
+        button.className = 'option';
+        button.textContent = option;
+        button.addEventListener('click', () => chooseOption(idx), { once: true });
+        optionsBox.appendChild(button);
+      });
+    }
+
+    function sendToBot(payload) {
+      if (!tg) return;
+      tg.sendData(JSON.stringify(payload));
+    }
+
+    function showResults() {
+      topBox.style.display = 'none';
+      cardBox.style.display = 'none';
+      optionsBox.style.display = 'none';
+
+      const wrong = answers.filter((item) => item && !item.isCorrect);
+      const rightCount = answers.length - wrong.length;
+
+      scoreNode.textContent = `Правильно: ${rightCount} / ${answers.length}`;
+
+      mistakesNode.innerHTML = '';
+      if (!wrong.length) {
+        const done = document.createElement('div');
+        done.textContent = 'Ошибок нет. Отличная работа!';
+        mistakesNode.appendChild(done);
+      } else {
+        for (const item of wrong) {
+          const node = document.createElement('div');
+          node.className = 'mistake';
+          const userAnswer = item.card.options[item.selected] || 'Нет ответа';
+          const correctAnswer = item.card.options[item.card.correct];
+          const query = item.card.searchQuery || item.card.question;
+
+          node.innerHTML = `
+            <div><b>Вопрос:</b> ${item.card.question}</div>
+            <div><b>Твой ответ:</b> ${userAnswer}</div>
+            <div><b>Правильный:</b> ${correctAnswer}</div>
+            <div><b>Почему:</b> ${item.card.explanation || 'Без объяснения'}</div>
+            <a target="_blank" rel="noopener noreferrer" href="${googleLink(query)}">Поиск по теме</a>
+          `;
+          mistakesNode.appendChild(node);
+        }
+      }
+
+      retryBtn.disabled = wrong.length === 0;
+
+      sendToBot({
+        type: 'quiz_result',
+        wrongCards: wrong.map((item) => ({ id: item.card.id }))
+      });
+
+      resultsBox.classList.add('visible');
+    }
+
+    newQuizBtn.addEventListener('click', () => {
+      sendToBot({ type: 'new_quiz' });
+      if (tg) tg.close();
+    });
+
+    retryBtn.addEventListener('click', () => {
+      const wrong = answers.filter((item) => item && !item.isCorrect).map((item) => item.card);
+      sendToBot({ type: 'retry_mistakes', wrongCards: wrong });
+      if (tg) tg.close();
+    });
+
+    (async () => {
+      try {
+        setStatus('Загружаем квиз...');
+        quiz = await loadQuiz();
+        currentCards = Array.isArray(quiz.cards) ? quiz.cards : [];
+        if (!currentCards.length) {
+          throw new Error('В квизе нет карточек.');
+        }
+
+        setStatus('');
+        renderCard();
+      } catch (error) {
+        setStatus(error.message || 'Не удалось загрузить квиз.');
+      }
+    })();
+  </script>
+</body>
+</html>
+
