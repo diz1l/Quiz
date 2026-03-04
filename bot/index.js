@@ -90,7 +90,7 @@ function sanitizeQuiz(quiz, fallbackCount) {
     .map((card, index) => {
       const question = typeof card.question === 'string' ? card.question.trim() : '';
 
-      // Gemini sometimes returns options as a string block; normalize to 4 clean entries.
+      // Gemini/Groq may return options as a string block; normalize to 4 clean entries.
       const rawOptions = Array.isArray(card.options)
         ? card.options
         : typeof card.options === 'string'
@@ -106,14 +106,19 @@ function sanitizeQuiz(quiz, fallbackCount) {
           correct = ['A', 'B', 'C', 'D'].indexOf(text);
         }
       }
-      if (Number.isInteger(correct) && correct >= 1 && correct <= 4) {
-        correct -= 1;
-      }
 
       const explanation = typeof card.explanation === 'string' ? card.explanation.trim() : '';
       const searchQuery = typeof card.searchQuery === 'string' ? card.searchQuery.trim() : question;
+      const hasValidCorrect = Number.isInteger(correct) && correct >= 0 && correct <= 3;
 
-      if (!question || options.length !== 4 || !Number.isInteger(correct) || correct < 0 || correct > 3) {
+      if (!question || options.length !== 4 || !hasValidCorrect) {
+        console.warn('[QUIZ_SANITIZE_INVALID_CARD]', {
+          index,
+          rawCorrect,
+          parsedCorrect: correct,
+          optionsCount: options.length,
+          hasQuestion: Boolean(question)
+        });
         return null;
       }
 
@@ -224,7 +229,7 @@ async function generateQuizWithGroq(topicPrompt, extraPrompt) {
   const cardCount = parseCardCount(topicPrompt);
   const finalPrompt = [topicPrompt, extraPrompt].filter(Boolean).join('\nДополнительно: ');
 
-  const baseInstruction = `Сгенерируй квиз и верни ТОЛЬКО валидный JSON-объект.\n\nПравила:\n1) Ответ начинается с { и заканчивается }\n2) Никакого markdown, никаких тройных обратных кавычек и никакого текста вне JSON\n3) Формат:\n{\n  "title": "Название квиза",\n  "cards": [\n    {\n      "id": 1,\n      "question": "Текст вопроса",\n      "options": ["Вариант A", "Вариант B", "Вариант C", "Вариант D"],\n      "correct": 0,\n      "explanation": "Краткое объяснение",\n      "searchQuery": "поисковый запрос"\n    }\n  ]\n}\n4) Язык: русский\n5) cards: ровно ${cardCount} вопросов\n6) options: ровно 4 строки\n7) correct: индекс правильного ответа 0..3\n8) Не добавляй лишних полей\n\nТема пользователя:\n${finalPrompt}`;
+  const baseInstruction = `Сгенерируй квиз и верни ТОЛЬКО валидный JSON-объект.\n\nПравила:\n1) Ответ начинается с { и заканчивается }\n2) Никакого markdown, никаких тройных обратных кавычек и никакого текста вне JSON\n3) Формат:\n{\n  "title": "Название квиза",\n  "cards": [\n    {\n      "id": 1,\n      "question": "Текст вопроса",\n      "options": ["Вариант A", "Вариант B", "Вариант C", "Вариант D"],\n      "correct": 0,\n      "explanation": "Краткое объяснение",\n      "searchQuery": "поисковый запрос"\n    }\n  ]\n}\n4) Язык: русский\n5) cards: ровно ${cardCount} вопросов\n6) options: ровно 4 строки\n7) correct: индекс правильного ответа 0..3 (строго 0-based, никогда не 1..4)\n8) Не добавляй лишних полей\n\nТема пользователя:\n${finalPrompt}`;
 
   async function runOnce() {
     const completion = await groq.chat.completions.create({

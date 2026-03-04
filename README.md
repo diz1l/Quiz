@@ -1,50 +1,36 @@
-# TG Quiz Bot - @quizforlearn_bot
+# TG Quiz Bot (@quizforlearn_bot)
 
-Telegram-бот на Node.js, который генерирует квизы через Gemini и показывает их в Telegram WebApp.
+Minimal Telegram quiz bot with WebApp UI.
 
-## Что внутри
+- Bot: `@quizforlearn_bot`
+- AI provider: Groq API (`llama-3.3-70b-versatile`)
+- Hosting: Render
 
-- `bot/index.js` - Telegraf + Express сервер, логика диалога и генерации квизов
-- `webapp/index.html` - одностраничный Telegram WebApp (HTML/CSS/JS в одном файле)
-- `.env.example` - пример переменных окружения
+## Run locally
 
-## Быстрый старт
-
-1. Установите зависимости:
+1. Install dependencies:
 
 ```sh
 npm install
 ```
 
-2. Подготовьте `.env` (можно скопировать из `.env.example`) и заполните:
+2. Create `.env` and set:
 
-- `BOT_TOKEN`
-- `GEMINI_API_KEY`
-- `WEBAPP_URL` (публичный URL вашего Render сервиса)
-- `PORT` (обычно `3000`)
+```env
+BOT_TOKEN=...
+GROQ_API_KEY=...
+WEBAPP_URL=https://your-service.onrender.com
+PORT=3000
+```
 
-3. Запуск:
+3. Start:
 
 ```sh
 npm start
 ```
 
-Для разработки:
-
-```sh
-npm run dev
-```
-
-## Render деплой
+## Deploy on Render
 
 - Build command: `npm install`
 - Start command: `npm start`
-- Переменные окружения добавьте в Dashboard Render
-
-## Примечания
-
-- Состояние пользователей хранится в памяти (`Map`) и очищается при рестарте процесса.
-- Квизы для WebApp выдаются через токен (`/api/quiz/:token`) с ограниченным временем жизни.
-
-https://console.groq.com/keys
-https://dashboard.render.com/web
+- Add env vars in Render dashboard
