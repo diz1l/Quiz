@@ -1,4 +1,4 @@
-# TG Quiz Bot
+# TG Quiz Bot - @quizforlearn_bot
 
 Telegram-бот на Node.js, который генерирует квизы через Gemini и показывает их в Telegram WebApp.
 
